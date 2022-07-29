@@ -11,20 +11,25 @@ router.get("/", async (req, res) => {
 
 router.get("/:prop", async (req, res) => {
     const prop = req.params.prop;
+    let pokemon = [];
     if(prop.length === 36) {
-        const pokemons = await getPokemonBase(props);
-        return pokemons;
+        pokemon = await getPokemonBase(prop);
     } else {
-        const pokemon = await getPokemon(prop);
-        res.send(pokemon);
+        const pokemonBase = await Pokemon.findAll({ where: {name: {[Op.iLike]: prop}} });
+        if(pokemonBase.length > 0) {
+            pokemon = await getPokemonBase(pokemonBase[0].id);
+        } else {
+            pokemon = await getPokemon(prop);
+        };
     };
+    res.send(pokemon);
 });
 
 router.post("/", async (req, res) => {
     const { name, image, height, weight, base_experience, hp, attack, defense, special_attack, special_defense, speed, color, habitat, shape, generation, evolves_to, egg_groups, game_indices, types, abilities } = req.body;
-    if(!name) return res.status(422).send("Brother, necesitas ingresar un nombre a tu pokemon");
-    if(!image) return res.status(422).send("Brother, necesitas ingresar una imagen a tu pokemon");
-    if(!types) return res.status(422).send("Brother, necesitas ingresar los tipos de tu pokemon");
+    if(!name) return res.status(422).send("Please enter a name");
+    if(!image) return res.status(422).send("Please enter a  image");
+    if(!types) return res.status(422).send("Please enter the types");
     const pokemon = await Pokemon.create({ name, image, height, weight, base_experience, hp, attack, defense, special_attack, special_defense, speed, color, habitat, shape, generation, evolves_to, egg_groups, game_indices, types, abilities });
     const type = await Type.findAll({ where: {name: {[Op.in]: types}} });
     const abilitie = await Abilitie.findAll({ where: {name: {[Op.in]: abilities}} });
@@ -35,13 +40,13 @@ router.post("/", async (req, res) => {
 
 router.delete("/:id", async (req, res) => {
     const id = req.params.id;
-    if(id.length !== 36) return res.status(422).send("No puedes eliminar pokemones canon");
+    if(id.length !== 36) return res.status(422).send("You can't delete pokemon that are not yours");
     const pokemon = await Pokemon.findAll({ where: {id: id}});
     if(pokemon) {
         Pokemon.destroy({ where: {id: id}});
-        res.status(200).send("Tu pokemon fue borrado");
+        res.status(200).send("Your pokemon was deleted");
     } else {
-        res.status(200).send("El pokemon no existe o probablemente ya lo hayas borrado");
+        res.status(200).send("The pokemon does not exist or you have probably already deleted it");
     };
 });
 
@@ -50,7 +55,7 @@ router.put("/:id", async (req, res) => {
     const { name, image, height, weight, base_experience, hp, attack, defense, special_attack, special_defense, speed, color, habitat, shape, generation, evolves_to, egg_groups, game_indices, moves, types, abilities } = req.body;
     try {
         const pokemon = await Pokemon.findByPk(id);
-        if(!pokemon) return res.status(404).send("No existe este pokemon");
+        if(!pokemon) return res.status(404).send("This pokemon does not exist");
         pokemon.name = name ? name : pokemon.name;
         pokemon.image = image ? image : pokemon.image;
         pokemon.height = height ? height : pokemon.height;
@@ -73,7 +78,7 @@ router.put("/:id", async (req, res) => {
         pokemon.types = types ? types : pokemon.types;
         pokemon.abilities = abilities ? abilities : pokemon.abilities;
         await pokemon.save();
-        return res.send("Pokemon actualizado");
+        return res.send("Pokemon updated");
     } catch (error) {
         return res.send({ error: error.message });
     };
